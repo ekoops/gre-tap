@@ -8,6 +8,7 @@ SENDER=${SENDER:-"sender0"}
 RECEIVER=${RECEIVER:-"receiver0"}
 SENDER_IF=${SENDER_IF:-"ens0"}
 RECEIVER_IF=${RECEIVER_IF:-"ens1"}
+FILTER=${FILTER:-"tcp"}
 
 function cleanup {
 	set +e
@@ -29,16 +30,11 @@ function compile_filter {
 
 function add_filter {
   IF=$1
-#  sudo tc -n "$SENDER" qdisc add dev "$IF" handle ffff: ingress
-#  sudo tc -n "$SENDER" filter add dev "$IF" parent ffff: \
-#    protocol ip \
-#    u32 match ip protocol 1 0xff \
-#    action mirred egress mirror dev "$TUN"
-
-  BYTECODE=$(compile_filter "tcp")
+  FILTER=$2
+  COMPILED_FILTER=$(compile_filter "$FILTER")
   sudo tc -n "$SENDER" qdisc add dev "$IF" handle 1: root prio
   sudo tc -n "$SENDER" filter add dev "$IF" parent 1: \
-    bpf bytecode "$BYTECODE" \
+    bpf bytecode "$FILTER" \
     action mirred egress mirror dev "$TUN"
 }
 
@@ -81,6 +77,9 @@ sudo ip -n "$RECEIVER" link set dev "$TUN" up
 sudo ip -n "$SENDER" addr add 172.16.0.1/30 dev "$TUN"
 sudo ip -n "$RECEIVER" addr add 172.16.0.2/30 dev "$TUN"
 
+# Compile traffic mirroring filter
+COMPILED_FILTER=$(compile_filter "$FILTER")
+
 # Setup pod network namespaces
 for i in $(seq "$NUM_NS"); do
   # Create network namespace
@@ -100,7 +99,7 @@ for i in $(seq "$NUM_NS"); do
 	# Setup external route
 	sudo ip -n "$SENDER" route add 10.0.0."$i" dev veth"$i"
   # Add qdiscs/filters for mirroring traffic to the GRE tunnel
-  add_filter veth"$i"
+  add_filter veth"$i" "$COMPILED_FILTER"
 done
 
 # shellcheck disable=SC2162
