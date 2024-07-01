@@ -10,7 +10,7 @@ RECEIVER=${RECEIVER:-"receiver0"}
 function cleanup {
 	set +e
 	for i in $(seq "$NUM_NS"); do
-		sudo ip netns del ns"${i}"
+		sudo ip netns del ns"$i"
 	done
   sudo ip -n "$RECEIVER" link del "$TUN"
   sudo ip -n "$SENDER" link del "$TUN"
@@ -51,8 +51,8 @@ sudo ip netns add "$RECEIVER"
 # Create infrastructure for connecting the sender with the receiver node (a bridge with two veth pairs representing the
 # nodes devices)
 sudo ip link add br0 type bridge
-sudo ip link add ens0_ mtu "${NODES_MTU}" master br0 type veth peer name ens0 netns "$SENDER" mtu "${NODES_MTU}"
-sudo ip link add ens1_ mtu "${NODES_MTU}" master br0 type veth peer name ens1 netns "$RECEIVER" mtu "${NODES_MTU}"
+sudo ip link add ens0_ mtu "$NODES_MTU" master br0 type veth peer name ens0 netns "$SENDER" mtu "$NODES_MTU"
+sudo ip link add ens1_ mtu "$NODES_MTU" master br0 type veth peer name ens1 netns "$RECEIVER" mtu "$NODES_MTU"
 # Set bridge and devices up
 sudo ip link set dev br0 up
 sudo ip link set dev ens0_ up
@@ -80,23 +80,23 @@ sudo ip -n "$RECEIVER" addr add 172.16.0.2/30 dev "$TUN"
 # Setup pod network namespaces
 for i in $(seq "$NUM_NS"); do
   # Create network namespace
-	sudo ip netns add ns"${i}"
+	sudo ip netns add ns"$i"
 	# Create veth pair
-	sudo ip -n "$SENDER" link add veth"${i}" mtu "${VETH_MTU}" type veth peer \
-	  name veth"${i}"_ netns ns"${i}" mtu "${VETH_MTU}"
+	sudo ip -n "$SENDER" link add veth"$i" mtu "$VETH_MTU" type veth peer \
+	  name veth"$i"_ netns ns"$i" mtu "$VETH_MTU"
 	# Set veth pair end up
-	sudo ip -n ns"${i}" link set dev veth"${i}"_ up
-	sudo ip -n "$SENDER" link set dev veth"${i}" up
+	sudo ip -n ns"$i" link set dev veth"$i"_ up
+	sudo ip -n "$SENDER" link set dev veth"$i" up
 	# Add address to the internal veth pair end
-	sudo ip -n ns"${i}" addr add 10.0.0."${i}" dev veth"${i}"_
+	sudo ip -n ns"$i" addr add 10.0.0."$i" dev veth"$i"_
 	# Setup internal routes and arp proxy
-	sudo ip -n ns"${i}" route add 169.254.1.1 dev veth"${i}"_
-	sudo ip -n ns"${i}" route add default via 169.254.1.1
-	sudo ip netns exec "$SENDER" sh -c "echo 1 > /proc/sys/net/ipv4/conf/veth${i}/proxy_arp"
+	sudo ip -n ns"$i" route add 169.254.1.1 dev veth"$i"_
+	sudo ip -n ns"$i" route add default via 169.254.1.1
+	sudo ip netns exec "$SENDER" sh -c "echo 1 > /proc/sys/net/ipv4/conf/veth$i/proxy_arp"
 	# Setup external route
-	sudo ip -n "$SENDER" route add 10.0.0."${i}" dev veth"${i}"
+	sudo ip -n "$SENDER" route add 10.0.0."$i" dev veth"$i"
   # Add qdiscs/filters for mirroring traffic to the GRE tunnel
-  add_filter veth"${i}"
+  add_filter veth"$i"
 done
 
 # shellcheck disable=SC2162
