@@ -14,8 +14,8 @@ function cleanup {
 	done
   sudo ip -n "$RECEIVER" link del "$TUN"
   sudo ip -n "$SENDER" link del "$TUN"
-  sudo ip link del eth1_
-  sudo ip link del eth0_
+  sudo ip link del ens1_
+  sudo ip link del ens0_
   sudo ip link del br0
 	sudo ip netns del "$RECEIVER"
 	sudo ip netns del "$SENDER"
@@ -51,25 +51,25 @@ sudo ip netns add "$RECEIVER"
 # Create infrastructure for connecting the sender with the receiver node (a bridge with two veth pairs representing the
 # nodes devices)
 sudo ip link add br0 type bridge
-sudo ip link add eth0_ mtu "${NODES_MTU}" master br0 type veth peer name eth0 netns "$SENDER" mtu "${NODES_MTU}"
-sudo ip link add eth1_ mtu "${NODES_MTU}" master br0 type veth peer name eth1 netns "$RECEIVER" mtu "${NODES_MTU}"
+sudo ip link add ens0_ mtu "${NODES_MTU}" master br0 type veth peer name ens0 netns "$SENDER" mtu "${NODES_MTU}"
+sudo ip link add ens1_ mtu "${NODES_MTU}" master br0 type veth peer name ens1 netns "$RECEIVER" mtu "${NODES_MTU}"
 # Set bridge and devices up
 sudo ip link set dev br0 up
-sudo ip link set dev eth0_ up
-sudo ip link set dev eth1_ up
-sudo ip -n "$SENDER" link set dev eth0 up
-sudo ip -n "$RECEIVER" link set dev eth1 up
+sudo ip link set dev ens0_ up
+sudo ip link set dev ens1_ up
+sudo ip -n "$SENDER" link set dev ens0 up
+sudo ip -n "$RECEIVER" link set dev ens1 up
 # Configure addressses on nodes devices
 sudo ip addr add 192.168.1.254/24 dev br0
-sudo ip -n "$SENDER" addr add 192.168.1.1/24 dev eth0
-sudo ip -n "$RECEIVER" addr add 192.168.1.2/24 dev eth1
+sudo ip -n "$SENDER" addr add 192.168.1.1/24 dev ens0
+sudo ip -n "$RECEIVER" addr add 192.168.1.2/24 dev ens1
 # Configure default routes on nodes (actually only the one configured on the sender node is required: without it, arp
 # proxy doesn't work)
 sudo ip -n "$SENDER" route add default via 192.168.1.254
 sudo ip -n "$RECEIVER" route add default via 192.168.1.254
 # Configure gre tunnel
-sudo ip -n "$SENDER" link add "$TUN" type gretap local 192.168.1.1 remote 192.168.1.2 dev eth0
-sudo ip -n "$RECEIVER" link add "$TUN" type gretap local 192.168.1.2 remote 192.168.1.1 dev eth1
+sudo ip -n "$SENDER" link add "$TUN" type gretap local 192.168.1.1 remote 192.168.1.2 dev ens0
+sudo ip -n "$RECEIVER" link add "$TUN" type gretap local 192.168.1.2 remote 192.168.1.1 dev ens1
 # Set gre tunnel devices up
 sudo ip -n "$SENDER" link set dev "$TUN" up
 sudo ip -n "$RECEIVER" link set dev "$TUN" up
