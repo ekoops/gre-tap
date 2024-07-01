@@ -11,17 +11,17 @@ RECEIVER_IF=${RECEIVER_IF:-"ens1"}
 FILTER=${FILTER:-"tcp"}
 
 function cleanup {
-	set +e
-	for i in $(seq "$NUM_NS"); do
-		sudo ip netns del ns"$i"
-	done
+  set +e
+  for i in $(seq "$NUM_NS"); do
+    sudo ip netns del ns"$i"
+  done
   sudo ip -n "$RECEIVER" link del "$TUN"
   sudo ip -n "$SENDER" link del "$TUN"
   sudo ip link del "$RECEIVER_IF"_
   sudo ip link del "$SENDER_IF"_
   sudo ip link del br0
-	sudo ip netns del "$RECEIVER"
-	sudo ip netns del "$SENDER"
+  sudo ip netns del "$RECEIVER"
+  sudo ip netns del "$SENDER"
 }
 
 function compile_filter {
@@ -83,21 +83,21 @@ COMPILED_FILTER=$(compile_filter "$FILTER")
 # Setup pod network namespaces
 for i in $(seq "$NUM_NS"); do
   # Create network namespace
-	sudo ip netns add ns"$i"
-	# Create veth pair
-	sudo ip -n "$SENDER" link add veth"$i" mtu "$VETH_MTU" type veth peer \
-	  name veth"$i"_ netns ns"$i" mtu "$VETH_MTU"
-	# Set veth pair end up
-	sudo ip -n ns"$i" link set dev veth"$i"_ up
-	sudo ip -n "$SENDER" link set dev veth"$i" up
-	# Add address to the internal veth pair end
-	sudo ip -n ns"$i" addr add 10.0.0."$i" dev veth"$i"_
-	# Setup internal routes and arp proxy
-	sudo ip -n ns"$i" route add 169.254.1.1 dev veth"$i"_
-	sudo ip -n ns"$i" route add default via 169.254.1.1
-	sudo ip netns exec "$SENDER" sh -c "echo 1 > /proc/sys/net/ipv4/conf/veth$i/proxy_arp"
-	# Setup external route
-	sudo ip -n "$SENDER" route add 10.0.0."$i" dev veth"$i"
+  sudo ip netns add ns"$i"
+  # Create veth pair
+  sudo ip -n "$SENDER" link add veth"$i" mtu "$VETH_MTU" type veth peer \
+    name veth"$i"_ netns ns"$i" mtu "$VETH_MTU"
+  # Set veth pair end up
+  sudo ip -n ns"$i" link set dev veth"$i"_ up
+  sudo ip -n "$SENDER" link set dev veth"$i" up
+  # Add address to the internal veth pair end
+  sudo ip -n ns"$i" addr add 10.0.0."$i" dev veth"$i"_
+  # Setup internal routes and arp proxy
+  sudo ip -n ns"$i" route add 169.254.1.1 dev veth"$i"_
+  sudo ip -n ns"$i" route add default via 169.254.1.1
+  sudo ip netns exec "$SENDER" sh -c "echo 1 > /proc/sys/net/ipv4/conf/veth$i/proxy_arp"
+  # Setup external route
+  sudo ip -n "$SENDER" route add 10.0.0."$i" dev veth"$i"
   # Add qdiscs/filters for mirroring traffic to the GRE tunnel
   add_filter veth"$i" "$COMPILED_FILTER"
 done
